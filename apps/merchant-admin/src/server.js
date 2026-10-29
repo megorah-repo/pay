@@ -92,7 +92,13 @@ export class AdminServer {
   createServer() {
     return http.createServer(async (req, res) => {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-      const pathname = url.pathname;
+      // Vercel Services can forward the original public prefix to this service.
+      // Accept both the stripped path (/) and the prefixed path (/admin) so the
+      // dashboard works regardless of whether the service-level rewrite is applied.
+      const pathname = url.pathname === '/admin'
+        ? '/'
+        : (url.pathname.startsWith('/admin/') ? url.pathname.slice('/admin'.length) : url.pathname);
+      const normalizedRequestUrl = `${pathname}${url.search}`;
 
       if (req.method === 'OPTIONS') {
         res.writeHead(204, {
@@ -141,7 +147,7 @@ export class AdminServer {
           return;
         }
         const controlCenterUrl = process.env.CONTROL_CENTER_URL || `http://127.0.0.1:${process.env.CONTROL_CENTER_PORT || 8090}`;
-        const targetUrl = new URL(req.url, controlCenterUrl);
+        const targetUrl = new URL(normalizedRequestUrl, controlCenterUrl);
         const requestClient = targetUrl.protocol === 'https:' ? https : http;
         const forwardHeaders = sanitizedForwardHeaders(req, targetUrl.host);
         if (!forwardHeaders.authorization && !forwardHeaders.Authorization) {
@@ -172,7 +178,7 @@ export class AdminServer {
 
       // Transparent API Proxy: /api/* -> Payment Core REST API
       if (pathname.startsWith('/api/')) {
-        const targetUrl = new URL(req.url, this.apiBaseUrl);
+        const targetUrl = new URL(normalizedRequestUrl, this.apiBaseUrl);
         const requestClient = targetUrl.protocol === 'https:' ? https : http;
         const defaultMerchant = this.merchantRepo.getDefault ? this.merchantRepo.getDefault() : (this.merchantRepo.findById('00000000-0000-0000-0000-000000000001') || this.merchantRepo.findAll()[0]);
         const defaultMerchantId = defaultMerchant?.id || '00000000-0000-0000-0000-000000000001';
