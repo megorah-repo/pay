@@ -298,6 +298,51 @@ export class CheckoutServer {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       const pathname = url.pathname;
 
+      // Gateway landing page: the root URL is not a payment session.
+      // Real customer checkout pages are served at /checkout/:id.
+      if (pathname === '/') {
+        const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YOUPI PG Gateway</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at top,#18345b 0,#0b1220 52%,#080d16 100%);color:#edf3ff}
+    main{width:min(100%,680px);padding:clamp(24px,5vw,44px);border:1px solid #2b3d58;border-radius:24px;background:rgba(12,22,39,.88);box-shadow:0 24px 80px #0006}
+    .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#8eb8ff;font-weight:800}
+    h1{font-size:clamp(30px,6vw,44px);line-height:1.1;margin:14px 0}p{line-height:1.65;color:#b9c7db}
+    .links{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-top:26px}
+    a{display:block;padding:14px 16px;border:1px solid #344965;border-radius:12px;color:#edf3ff;text-decoration:none;font-weight:700;background:#14243a}
+    a:hover{background:#1c3452;border-color:#6598df}.note{font-size:13px;margin-top:24px;padding-top:18px;border-top:1px solid #29384d}
+    code{color:#b8d4ff}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Gateway is deployed</div>
+    <h1>YOUPI PG</h1>
+    <p>This gateway service is online. The main URL is a service landing page; a customer payment page is created for a specific payment session.</p>
+    <div class="links">
+      <a href="/admin">Merchant Admin ↗</a>
+      <a href="/store">Demo Store ↗</a>
+      <a href="/health">Health Check ↗</a>
+      <a href="/youpi.js">Checkout SDK ↗</a>
+    </div>
+    <p class="note">Customer checkout URLs use <code>/checkout/:id</code>. Use the checkout URL returned by the payment API for each payment session. Do not treat this landing page as payment confirmation.</p>
+  </main>
+</body>
+</html>`;
+        res.writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-store',
+          ...BASE_SECURITY_HEADERS
+        });
+        res.end(html);
+        return;
+      }
+
       // Health
       if (pathname === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
